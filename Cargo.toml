@@ -1,0 +1,7 @@
+[package]
+name = "agenda"
+version = "0.1.0"
+authors = ["Miguel Ryan Dantas de Freitas <miguelryandantas@gmail.com>"]
+edition = "2021"
+
+[dependencies]
