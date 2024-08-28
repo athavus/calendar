@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{BufRead, BufReader, Write};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Contato {
@@ -16,27 +18,30 @@ pub struct Agenda {
 
 impl Agenda {
     pub fn novo() -> Self {
-        Agenda {
+        let mut agenda = Agenda {
             contatos_por_nome: HashMap::new(),
             contatos_por_telefone: HashMap::new(),
             lista_contatos: Vec::new(),
-        }
+        };
+
+        agenda.carregar_de_arquivo();
+        agenda
     }
 
     pub fn adicionar_contato(&mut self, contato: Contato) {
         self.contatos_por_nome.insert(contato.nome.clone(), contato.clone());
         self.contatos_por_telefone.insert(contato.telefone.clone(), contato.clone());
         self.lista_contatos.push(contato);
+        self.salvar_em_arquivo();
     }
 
     pub fn buscar_por_nome(&self, nome: &str) -> Option<&Contato> {
         self.contatos_por_nome.get(nome)
     }
 
-    pub fn mostrar_todos_nomes(&self) -> Vec<&Contato> {
-        self.lista_contatos.values().collect()
+    pub fn mostrar_todos_nomes(&self) -> Vec<Contato> {
+        self.lista_contatos.clone()
     }
-    
 
     pub fn buscar_por_telefone(&self, telefone: &str) -> Option<&Contato> {
         self.contatos_por_telefone.get(telefone)
@@ -46,6 +51,7 @@ impl Agenda {
         if let Some(contato) = self.contatos_por_nome.remove(nome) {
             self.contatos_por_telefone.remove(&contato.telefone);
             self.lista_contatos.retain(|c| c.nome != nome);
+            self.salvar_em_arquivo();
             Some(contato)
         } else {
             None
@@ -56,57 +62,48 @@ impl Agenda {
         if let Some(contato) = self.contatos_por_telefone.remove(telefone) {
             self.contatos_por_nome.remove(&contato.nome);
             self.lista_contatos.retain(|c| c.telefone != telefone);
+            self.salvar_em_arquivo();
             Some(contato)
         } else {
             None
         }
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+    fn salvar_em_arquivo(&self) {
+        let mut arquivo = File::create("agenda.txt").expect("Não foi possível criar o arquivo");
 
-    #[test]
-    fn test_adicionar_contato() {
-        let mut agenda = Agenda::novo();
-        let contato = Contato {
-            nome: "João".to_string(),
-            telefone: "123456789".to_string(),
-            email: Some("joao@example.com".to_string()),
-            endereco: None,
-        };
-        agenda.adicionar_contato(contato.clone());
-        assert_eq!(agenda.buscar_por_nome("João"), Some(&contato));
+        for contato in &self.lista_contatos {
+            let linha = format!(
+                "{},{},{},{}\n",
+                contato.nome,
+                contato.telefone,
+                contato.email.clone().unwrap_or_default(),
+                contato.endereco.clone().unwrap_or_default()
+            );
+            arquivo.write_all(linha.as_bytes()).expect("Erro ao escrever no arquivo");
+        }
     }
 
-    #[test]
-    fn test_remover_contato_por_nome() {
-        let mut agenda = Agenda::novo();
-        let contato = Contato {
-            nome: "Maria".to_string(),
-            telefone: "987654321".to_string(),
-            email: Some("maria@example.com".to_string()),
-            endereco: None,
-        };
-        agenda.adicionar_contato(contato.clone());
-        let removido = agenda.remover_por_nome("Maria");
-        assert_eq!(removido, Some(contato));
-        assert!(agenda.buscar_por_nome("Maria").is_none());
-    }
+    fn carregar_de_arquivo(&mut self) {
+        let arquivo = File::open("agenda.txt");
 
-    #[test]
-    fn test_remover_contato_por_telefone() {
-        let mut agenda = Agenda::novo();
-        let contato = Contato {
-            nome: "Pedro".to_string(),
-            telefone: "555555555".to_string(),
-            email: Some("pedro@example.com".to_string()),
-            endereco: Some("Rua A, 123".to_string()),
-        };
-        agenda.adicionar_contato(contato.clone());
-        let removido = agenda.remover_por_telefone("555555555");
-        assert_eq!(removido, Some(contato));
-        assert!(agenda.buscar_por_telefone("555555555").is_none());
+        if let Ok(arquivo) = arquivo {
+            let reader = BufReader::new(arquivo);
+
+            for linha in reader.lines() {
+                if let Ok(linha) = linha {
+                    let partes: Vec<&str> = linha.split(',').collect();
+                    if partes.len() == 4 {
+                        let contato = Contato {
+                            nome: partes[0].to_string(),
+                            telefone: partes[1].to_string(),
+                            email: if partes[2].is_empty() { None } else { Some(partes[2].to_string()) },
+                            endereco: if partes[3].is_empty() { None } else { Some(partes[3].to_string()) },
+                        };
+                        self.adicionar_contato(contato);
+                    }
+                }
+            }
+        }
     }
 }

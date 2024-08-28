@@ -5,3 +5,10 @@ authors = ["Miguel Ryan Dantas de Freitas <miguelryandantas@gmail.com>"]
 edition = "2021"
 
 [dependencies]
+egui = "0.23"
+eframe = { version = "0.24", features = ["glow"] }
+regex = "1"
+
+[dependencies.winapi]
+version = "0.3.9"
+features = ["windef", "winuser"]
