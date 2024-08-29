@@ -1,6 +1,11 @@
 use agenda::{Agenda, Contato};
-use eframe::{egui::{self, Vec2, ViewportBuilder}, App as EframeApp, CreationContext};
+use eframe::{egui::{self, Vec2, ViewportBuilder, ScrollArea}, App as EframeApp, CreationContext};
 use regex::Regex;
+
+enum Visualizacao {
+    Json,
+    Formatada,
+}
 
 struct App {
     agenda: Agenda,
@@ -8,6 +13,7 @@ struct App {
     telefone: String,
     email: String,
     endereco: String,
+    visualizacao: Visualizacao,
 }
 
 impl App {
@@ -18,6 +24,7 @@ impl App {
             telefone: String::new(),
             email: String::new(),
             endereco: String::new(),
+            visualizacao: Visualizacao::Json,
         }
     }
 
@@ -98,35 +105,59 @@ impl EframeApp for App {
 
                             ui.separator();
 
+                            if ui.button("Alternar Visualização").clicked() {
+                                self.visualizacao = match self.visualizacao {
+                                    Visualizacao::Json => Visualizacao::Formatada,
+                                    Visualizacao::Formatada => Visualizacao::Json,
+                                };
+                            }
+
+                            ui.add_space(10.0); 
+
                             ui.heading("Contatos");
 
-                            for contato in self.agenda.mostrar_todos_nomes() {
-                                ui.horizontal(|ui| {
-                                    // Exibe o contato no formato JSON com quebras de linha
-                                    ui.label(format!(
-                                        r#"{{"nome": "{}",
+                            ScrollArea::vertical().show(ui, |ui| {
+                                ui.vertical_centered(|ui| {
+                                    for contato in self.agenda.mostrar_todos_nomes() {
+                                        ui.add_space(10.0);
+                                        match self.visualizacao {
+                                            Visualizacao::Json => {
+                                                ui.label(format!(
+                                                    r#"{{"nome": "{}",
 "telefone": "{}",
 "email": "{}",
 "endereco": "{}"}}"#,
-                                        contato.nome,
-                                        contato.telefone,
-                                        contato.email.clone().unwrap_or_default(),
-                                        contato.endereco.clone().unwrap_or_default()
-                                    ));
-                                    
-                                    // Botão de lixeira estilizado
-                                    if ui.add(
-                                        egui::Button::new("🗑️")
-                                            .min_size(Vec2::new(24.0, 24.0))
-                                            .sense(egui::Sense::click())
-                                            .fill(egui::Color32::from_rgb(255, 0, 0)) // Fundo vermelho
-                                            .stroke(egui::Stroke::new(0.0, egui::Color32::from_rgb(0,0,0))) // Remove a borda
-                                    ).clicked() {
-                                        self.agenda.remover_por_nome(&contato.nome);
+                                                    contato.nome,
+                                                    contato.telefone,
+                                                    contato.email.clone().unwrap_or_default(),
+                                                    contato.endereco.clone().unwrap_or_default()
+                                                ));
+                                            }
+                                            Visualizacao::Formatada => {
+                                                ui.label(format!(
+                                                    "Nome: {}\nTelefone: {}\nEmail: {}\nEndereço: {}",
+                                                    contato.nome,
+                                                    contato.telefone,
+                                                    contato.email.clone().unwrap_or_default(),
+                                                    contato.endereco.clone().unwrap_or_default()
+                                                ));
+                                            }
+                                        }
+                                        
+                                        if ui.add(
+                                            egui::Button::new("🗑️")
+                                                .min_size(Vec2::new(22.0, 22.0))
+                                                .sense(egui::Sense::click())
+                                                .fill(egui::Color32::from_rgb(255, 0, 0)) 
+                                                .stroke(egui::Stroke::new(0.0, egui::Color32::from_rgb(0,0,0)))
+                                        ).clicked() {
+                                            self.agenda.remover_por_nome(&contato.nome);
+                                        }
+
+                                        ui.separator();
                                     }
                                 });
-                                ui.add_space(5.0); // Adiciona um espaço entre os contatos
-                            }
+                            });
                         });
                     });
                 });
@@ -135,11 +166,9 @@ impl EframeApp for App {
     }
 }
 
-
-
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        viewport: ViewportBuilder::default().with_inner_size(Vec2::new(350.0, 400.0)),
+        viewport: ViewportBuilder::default().with_inner_size(Vec2::new(350.0, 450.0)),
         ..Default::default()
     };
 
