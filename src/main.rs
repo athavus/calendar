@@ -1,5 +1,8 @@
 use agenda::{Agenda, Contato};
-use eframe::{egui::{self, Vec2, ViewportBuilder, ScrollArea}, App as EframeApp, CreationContext};
+use eframe::{
+    egui::{self, Vec2, ViewportBuilder, ScrollArea},
+    App as EframeApp, CreationContext,
+};
 use regex::Regex;
 
 enum Visualizacao {
@@ -14,6 +17,7 @@ struct App {
     email: String,
     endereco: String,
     visualizacao: Visualizacao,
+    pesquisa: String,  // Campo para armazenar o texto de pesquisa
 }
 
 impl App {
@@ -25,6 +29,7 @@ impl App {
             email: String::new(),
             endereco: String::new(),
             visualizacao: Visualizacao::Json,
+            pesquisa: String::new(),  // Inicialize o campo de pesquisa
         }
     }
 
@@ -59,6 +64,15 @@ impl App {
 
         nome_valido && telefone_valido
     }
+
+    fn pesquisar_contatos(&self) -> Vec<Contato> {
+        let pesquisa = self.pesquisa.to_lowercase();
+        self.agenda
+            .mostrar_todos_nomes()
+            .into_iter()
+            .filter(|contato| contato.nome.to_lowercase().contains(&pesquisa))
+            .collect()
+    }
 }
 
 impl EframeApp for App {
@@ -71,6 +85,9 @@ impl EframeApp for App {
                             ui.heading("Agenda");
                             
                             ui.add_space(20.0);
+
+                            let padding_x = 12.5;
+                            let padding_y = 0.0;
 
                             egui::Grid::new("contact_grid")
                                 .num_columns(2)
@@ -97,7 +114,8 @@ impl EframeApp for App {
 
                             let entrada_valida = self.validar_entrada();
 
-                            if ui.add_enabled(entrada_valida, egui::Button::new("Adicionar Contato")).clicked() {
+                            if ui.add_enabled(entrada_valida, egui::Button::new("Adicionar Contato")
+                                .min_size(Vec2::new(120.0 + padding_x, 35.0 + padding_y))).clicked() {
                                 self.adicionar_contato();
                             }
 
@@ -105,20 +123,30 @@ impl EframeApp for App {
 
                             ui.separator();
 
-                            if ui.button("Alternar Visualização").clicked() {
+                            ui.label("Pesquisar Contato por Nome:");
+                            ui.add_space(5.0);
+                            ui.text_edit_singleline(&mut self.pesquisa);
+
+                            ui.add_space(10.0);
+
+                            // Aplicando padding ao botão "Alternar Visualização"
+                            if ui.add(egui::Button::new("Alternar Visualização")
+                                .min_size(Vec2::new(120.0 + padding_x, 35.0 + padding_y))).clicked() {
                                 self.visualizacao = match self.visualizacao {
                                     Visualizacao::Json => Visualizacao::Formatada,
                                     Visualizacao::Formatada => Visualizacao::Json,
                                 };
                             }
 
-                            ui.add_space(10.0); 
+                            ui.add_space(10.0);
 
                             ui.heading("Contatos");
 
                             ScrollArea::vertical().show(ui, |ui| {
                                 ui.vertical_centered(|ui| {
-                                    for contato in self.agenda.mostrar_todos_nomes() {
+                                    let contatos = self.pesquisar_contatos();
+
+                                    for contato in contatos {
                                         ui.add_space(10.0);
                                         match self.visualizacao {
                                             Visualizacao::Json => {
@@ -143,6 +171,8 @@ impl EframeApp for App {
                                                 ));
                                             }
                                         }
+
+                                        ui.add_space(10.0);
                                         
                                         if ui.add(
                                             egui::Button::new("🗑️")
@@ -165,10 +195,9 @@ impl EframeApp for App {
         });
     }
 }
-
 fn main() -> Result<(), eframe::Error> {
     let options = eframe::NativeOptions {
-        viewport: ViewportBuilder::default().with_inner_size(Vec2::new(350.0, 450.0)),
+        viewport: ViewportBuilder::default().with_inner_size(Vec2::new(350.0, 475.0)),
         ..Default::default()
     };
 
